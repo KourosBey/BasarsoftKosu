@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "483904792030",
+    "project_id": "basarsoftkosu",
+    "storage_bucket": "basarsoftkosu.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:483904792030:android:4261e461c7b447a2e6294f",
+        "android_client_info": {
+          "package_name": "com.example.kosuprogrami"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "483904792030-ei1hn9ndaket8i4bbmjnufoue599prg6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDio4ORe854siclRAsaa95AluK3Kx7AWh0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "483904792030-ei1hn9ndaket8i4bbmjnufoue599prg6.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
