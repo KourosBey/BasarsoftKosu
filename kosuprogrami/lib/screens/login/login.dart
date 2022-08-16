@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
+import 'package:kosuprogrami/provider/emailUserProvider.dart';
 import 'package:kosuprogrami/provider/googleProvider.dart';
-import 'package:kosuprogrami/screens/main/mainPage.dart';
+import 'package:kosuprogrami/screens/dashboard/dashboard.dart';
 import 'package:kosuprogrami/services/AuthService.dart';
 import 'package:provider/provider.dart';
 import 'package:social_login_buttons/social_login_buttons.dart';
@@ -21,10 +22,12 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget loginUI() {
-    return Consumer<GoogleSignInProvider>(
-      builder: ((context, value, child) {
+    return Consumer2<GoogleSignInProvider, EmailUserProvider>(
+      builder: ((context, value, email, child) {
         if (value.googleAccount != null) {
-          return loggedInUI(value);
+          return const MainPage();
+        } else if (email.user != null) {
+          return const MainPage();
         } else {
           return loginControls(context);
         }
@@ -99,15 +102,11 @@ class _LoginPageState extends State<LoginPage> {
                           style: ElevatedButton.styleFrom(
                               primary: Colors.green[300]),
                           onPressed: () => {
-                            _authService
-                                .signInWithEmailPassword(_emailController.text,
-                                    _passwordController.text)
-                                .then((value) {
-                              return Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => const MainPage()));
-                            })
+                            Provider.of<EmailUserProvider>(
+                              context,
+                              listen: false,
+                            ).login(_emailController.text,
+                                _passwordController.text),
                           },
                           child: const Text("Giriş Yap"),
                         ),

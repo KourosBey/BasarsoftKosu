@@ -6,12 +6,13 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kosuprogrami/screens/login/login.dart';
-import 'package:kosuprogrami/screens/main/mainPage.dart';
+import 'package:kosuprogrami/screens/dashboard/dashboard.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
+  final String signInEmail = "default";
   handleAuthState() {
     return StreamBuilder(
       stream: FirebaseAuth.instance.authStateChanges(),
@@ -26,18 +27,22 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<User?> signInWithEmailPassword(String email, String password) async {
-    var user;
+    User? user;
     try {
-      user = await _auth.signInWithEmailAndPassword(
-          email: email, password: password);
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      user = userCredential.user;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
-        print("I cant found your account..");
-      } else if (e.code == "wrong-password") {
-        print('Wrong passowrd try again');
+        print('No user found for that email.');
+      } else if (e.code == 'wrong-password') {
+        print('Wrong password provided.');
       }
     }
-    return user.user;
+
+    return user;
   }
 
   signOut() async {
