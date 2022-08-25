@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
@@ -17,12 +18,15 @@ class _NewActivyState extends State<NewActivy> {
   StreamSubscription? _locationSubscription;
   final Location _locationTracker = Location();
   Marker? marker;
+  Marker? fisrtLocationMarker;
   Circle? circle;
+
+  Map<PolylineId, Polyline> polylines = {};
   GoogleMapController? _controller;
 
   static CameraPosition initialLocation = const CameraPosition(
     target: LatLng(37.42796133580664, -122.085749655962),
-    zoom: 14.4746,
+    zoom: 12.0,
   );
 
   Future<Uint8List> getMarker() async {
@@ -32,8 +36,59 @@ class _NewActivyState extends State<NewActivy> {
     return byteData.buffer.asUint8List();
   }
 
-  void updateMarkerAndCircle(LocationData newLocalData, Uint8List imageData) {
+  void getDirections(LocationData currentLocation) async {
+    List<LatLng> polylineCoordinates = [];
+    PolylinePoints? polylineDistance;
+    PolylineResult result = await polylineDistance!.getRouteBetweenCoordinates(
+      "AIzaSyAzb-o3T89SUI6soC6GuJNW8Bk0VpD4NG4",
+      PointLatLng(fisrtLocationMarker!.position.latitude,
+          fisrtLocationMarker!.position.longitude),
+      PointLatLng(currentLocation.latitude!, currentLocation.longitude!),
+      travelMode: TravelMode.walking,
+    );
+
+    if (result.points.isNotEmpty) {
+      result.points.forEach((PointLatLng point) {
+        polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+      });
+    } else {
+      print(result.errorMessage);
+    }
+    addPolyLine(polylineCoordinates);
+  }
+
+  addPolyLine(List<LatLng> polylineCoordinates) {
+    PolylineId id = PolylineId("poly");
+    Polyline polyline = Polyline(
+      polylineId: id,
+      color: Colors.deepPurpleAccent,
+      points: polylineCoordinates,
+      width: 8,
+    );
+    polylines[id] = polyline;
+    setState(() {});
+  }
+
+  void getFirstLocation(LocationData firstLocationData) {
+    LatLng firstLocation =
+        LatLng(firstLocationData.latitude!, firstLocationData.longitude!);
+
+    setState(() {
+      fisrtLocationMarker = Marker(
+        markerId: const MarkerId("firstLocation"),
+        position: firstLocation,
+        draggable: false,
+        zIndex: 2,
+        flat: false,
+        icon: BitmapDescriptor.defaultMarker,
+      );
+    });
+  }
+
+  void updateMarkerAndCircle(
+      LocationData newLocalData, Uint8List imageData) async {
     LatLng latlng = LatLng(newLocalData.latitude!, newLocalData.longitude!);
+
     setState(() {
       marker = Marker(
           markerId: const MarkerId("home"),
@@ -57,9 +112,11 @@ class _NewActivyState extends State<NewActivy> {
   void getCurrentLocation() async {
     try {
       Uint8List imageData = await getMarker();
-      var location = await _locationTracker.getLocation();
 
+      var location = await _locationTracker.getLocation();
+      getFirstLocation(location);
       updateMarkerAndCircle(location, imageData);
+      getDirections(location);
 
       if (_locationSubscription != null) {
         _locationSubscription!.cancel();
@@ -73,8 +130,8 @@ class _NewActivyState extends State<NewActivy> {
                   bearing: 192.8334901395799,
                   target:
                       LatLng(newLocalData.latitude!, newLocalData.longitude!),
-                  tilt: 0,
-                  zoom: 18.00)));
+                  tilt: 5,
+                  zoom: 16.00)));
           updateMarkerAndCircle(newLocalData, imageData);
         }
       });
@@ -108,7 +165,7 @@ class _NewActivyState extends State<NewActivy> {
               child: Container(
                 child: GestureDetector(
                     onTap: () {
-                      debugPrint("Tıklandı");
+                      getCurrentLocation();
                     },
                     child: const Icon(Icons.play_circle_sharp, size: 60)),
               ),
@@ -174,7 +231,7 @@ class _NewActivyState extends State<NewActivy> {
                     child: Column(
                       children: const [
                         Text(
-                          "5.2KM",
+                          "fark",
                           style: TextStyle(
                               color: Colors.black,
                               fontSize: 28,
@@ -347,19 +404,17 @@ class _NewActivyState extends State<NewActivy> {
   Widget _buildGoogleMap(BuildContext context) {
     return Scaffold(
       body: GoogleMap(
-        mapType: MapType.hybrid,
+        mapType: MapType.normal,
         initialCameraPosition: initialLocation,
-        markers: Set.of((marker != null) ? [marker!] : []),
+        compassEnabled: false,
+        polylines: Set<Polyline>.of(polylines.values),
+        markers:
+            Set.of((marker != null) ? [marker!, fisrtLocationMarker!] : []),
         circles: Set.of((circle != null) ? [circle!] : []),
         onMapCreated: (GoogleMapController controller) {
           _controller = controller;
         },
       ),
-      floatingActionButton: FloatingActionButton(
-          child: Icon(Icons.location_searching),
-          onPressed: () {
-            getCurrentLocation();
-          }),
     );
   }
 
