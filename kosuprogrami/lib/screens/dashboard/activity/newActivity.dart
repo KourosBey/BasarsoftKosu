@@ -1,11 +1,14 @@
 import 'dart:async';
-
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
+import 'package:weather/weather.dart';
+
+import '../../../repositories/weatherCall.dart';
 
 class NewActivy extends StatefulWidget {
   const NewActivy({Key? key}) : super(key: key);
@@ -15,19 +18,49 @@ class NewActivy extends StatefulWidget {
 }
 
 class _NewActivyState extends State<NewActivy> {
+  bool isStart = false;
+  bool loading = true;
   StreamSubscription? _locationSubscription;
   final Location _locationTracker = Location();
   Marker? marker;
   Marker? fisrtLocationMarker;
   Circle? circle;
-
+  int? adimSay = 0;
+  PolylinePoints? polylineDistance = PolylinePoints();
   Map<PolylineId, Polyline> polylines = {};
   GoogleMapController? _controller;
-
+  double distance = 0.0;
+  bool clickPlay = false;
+  bool newPlayButton = false;
+  Weather? currentLocationWeather;
+  int saat = 0;
+  int dakika = 0;
+  int saniye = 0;
+  Timer? _timer;
   static CameraPosition initialLocation = const CameraPosition(
     target: LatLng(37.42796133580664, -122.085749655962),
-    zoom: 12.0,
+    zoom: 18.0,
   );
+
+  void _startTimer() {
+    setState(() {
+      isStart = !isStart;
+      if (isStart) {
+        _timer = Timer.periodic(
+            const Duration(milliseconds: 100),
+            (Timer timer) => setState(() {
+                  saniye++;
+                  if (saniye == 100) {
+                    dakika++;
+                    saniye = 0;
+                  }
+                  if (dakika == 60) {
+                    saat++;
+                  }
+                }));
+      }
+    });
+  }
 
   Future<Uint8List> getMarker() async {
     ByteData byteData =
@@ -38,7 +71,7 @@ class _NewActivyState extends State<NewActivy> {
 
   void getDirections(LocationData currentLocation) async {
     List<LatLng> polylineCoordinates = [];
-    PolylinePoints? polylineDistance;
+
     PolylineResult result = await polylineDistance!.getRouteBetweenCoordinates(
       "AIzaSyAzb-o3T89SUI6soC6GuJNW8Bk0VpD4NG4",
       PointLatLng(fisrtLocationMarker!.position.latitude,
@@ -54,14 +87,37 @@ class _NewActivyState extends State<NewActivy> {
     } else {
       print(result.errorMessage);
     }
+    double totalDistance = 0;
+    for (var i = 0; i < polylineCoordinates.length - 1; i++) {
+      totalDistance += calculateDistance(
+          polylineCoordinates[i].latitude,
+          polylineCoordinates[i].longitude,
+          polylineCoordinates[i + 1].latitude,
+          polylineCoordinates[i + 1].longitude);
+    }
+    print(totalDistance);
+
     addPolyLine(polylineCoordinates);
+
+    setState(() {
+      adimSay = ((distance * 100000).toInt() / 70).toInt();
+      distance = totalDistance;
+    });
   }
 
-  addPolyLine(List<LatLng> polylineCoordinates) {
+  double calculateDistance(lat1, lon1, lat2, lon2) {
+    var p = 0.017453292519943295;
+    var a = 0.5 -
+        cos((lat2 - lat1) * p) / 2 +
+        cos(lat1 * p) * cos(lat2 * p) * (1 - cos((lon2 - lon1) * p)) / 2;
+    return 12742 * asin(sqrt(a));
+  }
+
+  void addPolyLine(List<LatLng> polylineCoordinates) {
     PolylineId id = PolylineId("poly");
     Polyline polyline = Polyline(
       polylineId: id,
-      color: Colors.deepPurpleAccent,
+      color: Colors.black,
       points: polylineCoordinates,
       width: 8,
     );
@@ -69,10 +125,19 @@ class _NewActivyState extends State<NewActivy> {
     setState(() {});
   }
 
-  void getFirstLocation(LocationData firstLocationData) {
-    LatLng firstLocation =
-        LatLng(firstLocationData.latitude!, firstLocationData.longitude!);
-
+  void getFirstLocation() async {
+    Uint8List imageData = await getMarker();
+    var location = await _locationTracker.getLocation();
+    LatLng firstLocation = LatLng(location.latitude!, location.longitude!);
+    currentLocationWeather = await getWeatherLocation(location);
+    if (_controller != null) {
+      _controller?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
+          bearing: 192.8334901395799,
+          target: LatLng(location.latitude!, location.longitude!),
+          tilt: 2,
+          zoom: 18.00)));
+      updateMarkerAndCircle(location, imageData);
+    }
     setState(() {
       fisrtLocationMarker = Marker(
         markerId: const MarkerId("firstLocation"),
@@ -82,6 +147,7 @@ class _NewActivyState extends State<NewActivy> {
         flat: false,
         icon: BitmapDescriptor.defaultMarker,
       );
+      loading = false;
     });
   }
 
@@ -114,9 +180,8 @@ class _NewActivyState extends State<NewActivy> {
       Uint8List imageData = await getMarker();
 
       var location = await _locationTracker.getLocation();
-      getFirstLocation(location);
+
       updateMarkerAndCircle(location, imageData);
-      getDirections(location);
 
       if (_locationSubscription != null) {
         _locationSubscription!.cancel();
@@ -131,8 +196,9 @@ class _NewActivyState extends State<NewActivy> {
                   target:
                       LatLng(newLocalData.latitude!, newLocalData.longitude!),
                   tilt: 5,
-                  zoom: 16.00)));
+                  zoom: 18.00)));
           updateMarkerAndCircle(newLocalData, imageData);
+          getDirections(newLocalData);
         }
       });
     } on PlatformException catch (e) {
@@ -161,14 +227,51 @@ class _NewActivyState extends State<NewActivy> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             routeMenuWidget(context),
-            Center(
-              child: Container(
-                child: GestureDetector(
-                    onTap: () {
-                      getCurrentLocation();
-                    },
-                    child: const Icon(Icons.play_circle_sharp, size: 60)),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Center(
+                  child: Container(
+                    child: GestureDetector(
+                      onTap: () {
+                        if (clickPlay) {
+                          _timer!.cancel();
+                          isStart = false;
+                          clickPlay = false;
+                        } else {
+                          clickPlay = true;
+                          _startTimer();
+                          getCurrentLocation();
+                        }
+                        setState(() {
+                          newPlayButton = clickPlay;
+                        });
+                      },
+                      child: newPlayButton
+                          ? const Icon(Icons.pause_circle_filled_sharp,
+                              size: 60)
+                          : const Icon(Icons.play_circle_sharp, size: 60),
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Container(
+                    child: GestureDetector(
+                        onTap: () {
+                          if (clickPlay) {
+                            _timer!.cancel();
+                            isStart = false;
+                            clickPlay = false;
+                            newPlayButton = false;
+                          } else {
+                            getCurrentLocation();
+                          }
+                        },
+                        child: const Icon(Icons.stop_circle_sharp, size: 60)),
+                  ),
+                ),
+              ],
             ),
             statusForExercise(),
           ]),
@@ -189,16 +292,16 @@ class _NewActivyState extends State<NewActivy> {
                 children: [
                   Container(
                     child: Column(
-                      children: const [
+                      children: [
                         Text(
-                          "5.2KM",
-                          style: TextStyle(
+                          distance.toStringAsFixed(2).toString() + " KM",
+                          style: const TextStyle(
                               color: Colors.black,
                               fontSize: 28,
                               fontWeight: FontWeight.bold),
                         ),
-                        Text(
-                          "yürüdüğünüz yol",
+                        const Text(
+                          "Toplam Mesafe",
                           style: TextStyle(color: Colors.white, fontSize: 12),
                         )
                       ],
@@ -206,16 +309,16 @@ class _NewActivyState extends State<NewActivy> {
                   ),
                   Container(
                     child: Column(
-                      children: const [
+                      children: [
                         Text(
-                          "5.2KM",
-                          style: TextStyle(
+                          adimSay.toString(),
+                          style: const TextStyle(
                               color: Colors.black,
                               fontSize: 28,
                               fontWeight: FontWeight.bold),
                         ),
-                        Text(
-                          "yürüdüğünüz yol",
+                        const Text(
+                          "Attığınız Adım Sayısı",
                           style: TextStyle(color: Colors.white, fontSize: 12),
                         )
                       ],
@@ -229,37 +332,42 @@ class _NewActivyState extends State<NewActivy> {
                 children: [
                   Container(
                     child: Column(
-                      children: const [
+                      children: [
                         Text(
-                          "fark",
-                          style: TextStyle(
+                          currentLocationWeather != null
+                              ? "${(currentLocationWeather!.temperature!.celsius)!.toInt()}\u2103 "
+                              : "Yükleniyor..".toString(),
+                          style: const TextStyle(
                               color: Colors.black,
                               fontSize: 28,
                               fontWeight: FontWeight.bold),
                         ),
-                        Text(
-                          "yürüdüğünüz yol",
+                        const Text(
+                          "Sıcaklık",
                           style: TextStyle(color: Colors.white, fontSize: 12),
                         )
                       ],
                     ),
                   ),
                   Container(
-                    child: Column(
-                      children: const [
-                        Text(
-                          "5.2KM",
-                          style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          "yürüdüğünüz yol",
-                          style: TextStyle(color: Colors.white, fontSize: 12),
-                        )
-                      ],
-                    ),
+                    child: currentLocationWeather != null
+                        ? Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Image.network(
+                                'http://openweathermap.org/img/w/${(currentLocationWeather!.weatherIcon!)}.png',
+                                scale: 1.25,
+                              ),
+                              Text(
+                                "${(currentLocationWeather!.weatherDescription)}",
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 12),
+                              )
+                              // 60 dakikada bir Request oluşturulabiliyor.
+                            ],
+                          )
+                        : const Text("Yükleniyor.."),
                   ),
                 ],
               ),
@@ -269,16 +377,16 @@ class _NewActivyState extends State<NewActivy> {
                 children: [
                   Container(
                     child: Column(
-                      children: const [
+                      children: [
                         Text(
-                          "5.2KM",
-                          style: TextStyle(
+                          "$saat" r"'" ":" "$dakika" r"''" ":" "$saniye" r"'''",
+                          style: const TextStyle(
                               color: Colors.black,
                               fontSize: 28,
                               fontWeight: FontWeight.bold),
                         ),
-                        Text(
-                          "yürüdüğünüz yol",
+                        const Text(
+                          "Geçen Süre",
                           style: TextStyle(color: Colors.white, fontSize: 12),
                         )
                       ],
@@ -286,16 +394,19 @@ class _NewActivyState extends State<NewActivy> {
                   ),
                   Container(
                     child: Column(
-                      children: const [
+                      children: [
                         Text(
-                          "5.2KM",
-                          style: TextStyle(
+                          distance != 0
+                              ? "${(distance / ((saat.toDouble() + ((dakika).toDouble() / 60 + (saniye / 6000).toDouble())))).toStringAsFixed(2)}"
+                                  " KM/S"
+                              : "0",
+                          style: const TextStyle(
                               color: Colors.black,
                               fontSize: 28,
                               fontWeight: FontWeight.bold),
                         ),
-                        Text(
-                          "yürüdüğünüz yol",
+                        const Text(
+                          "Ortalama Hız",
                           style: TextStyle(color: Colors.white, fontSize: 12),
                         )
                       ],
@@ -303,86 +414,6 @@ class _NewActivyState extends State<NewActivy> {
                   ),
                 ],
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    child: Column(
-                      children: const [
-                        Text(
-                          "5.2KM",
-                          style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          "yürüdüğünüz yol",
-                          style: TextStyle(color: Colors.white, fontSize: 12),
-                        )
-                      ],
-                    ),
-                  ),
-                  Container(
-                    child: Column(
-                      children: const [
-                        Text(
-                          "5.2KM",
-                          style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          "yürüdüğünüz yol",
-                          style: TextStyle(color: Colors.white, fontSize: 12),
-                        )
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    child: Column(
-                      children: const [
-                        Text(
-                          "5.2KM",
-                          style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          "yürüdüğünüz yol",
-                          style: TextStyle(color: Colors.white, fontSize: 12),
-                        )
-                      ],
-                    ),
-                  ),
-                  Container(
-                    child: Column(
-                      children: const [
-                        Text(
-                          "5.2KM",
-                          style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          "yürüdüğünüz yol",
-                          style: TextStyle(color: Colors.white, fontSize: 12),
-                        )
-                      ],
-                    ),
-                  ),
-                ],
-              )
             ],
           )),
     );
@@ -413,6 +444,9 @@ class _NewActivyState extends State<NewActivy> {
         circles: Set.of((circle != null) ? [circle!] : []),
         onMapCreated: (GoogleMapController controller) {
           _controller = controller;
+          setState(() {
+            getFirstLocation();
+          });
         },
       ),
     );
