@@ -3,16 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class GoogleSignInProvider extends ChangeNotifier {
-  var _googleSignIn = GoogleSignIn();
+  final _googleSignIn = GoogleSignIn();
   GoogleSignInAccount? googleAccount;
 
   login() async {
-    this.googleAccount = await _googleSignIn.signIn();
+    googleAccount = await _googleSignIn.signIn();
     notifyListeners();
   }
 
   logOut() async {
-    this.googleAccount = await _googleSignIn.signOut();
+    googleAccount = await _googleSignIn.signOut();
     notifyListeners();
   }
 }

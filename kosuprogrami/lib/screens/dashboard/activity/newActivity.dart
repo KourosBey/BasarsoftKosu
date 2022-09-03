@@ -1,13 +1,19 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:kosuprogrami/models/activities_model.dart';
+import 'package:kosuprogrami/provider/emailUserProvider.dart';
 import 'package:location/location.dart';
+import 'package:provider/provider.dart';
 import 'package:weather/weather.dart';
 
+import '../../../databases/dbActivityDatas.dart';
+import '../../../provider/googleProvider.dart';
 import '../../../repositories/weatherCall.dart';
 
 class NewActivy extends StatefulWidget {
@@ -18,6 +24,7 @@ class NewActivy extends StatefulWidget {
 }
 
 class _NewActivyState extends State<NewActivy> {
+  bool firstPlay = false;
   bool isStart = false;
   bool loading = true;
   StreamSubscription? _locationSubscription;
@@ -37,6 +44,8 @@ class _NewActivyState extends State<NewActivy> {
   int dakika = 0;
   int saniye = 0;
   Timer? _timer;
+  Activities? saveActivities;
+  List<LatLng>? savePoly;
   static CameraPosition initialLocation = const CameraPosition(
     target: LatLng(37.42796133580664, -122.085749655962),
     zoom: 18.0,
@@ -98,7 +107,7 @@ class _NewActivyState extends State<NewActivy> {
     print(totalDistance);
 
     addPolyLine(polylineCoordinates);
-
+    savePoly = polylineCoordinates;
     setState(() {
       adimSay = ((distance * 100000).toInt() / 70).toInt();
       distance = totalDistance;
@@ -114,7 +123,7 @@ class _NewActivyState extends State<NewActivy> {
   }
 
   void addPolyLine(List<LatLng> polylineCoordinates) {
-    PolylineId id = PolylineId("poly");
+    PolylineId id = const PolylineId("poly");
     Polyline polyline = Polyline(
       polylineId: id,
       color: Colors.black,
@@ -122,7 +131,10 @@ class _NewActivyState extends State<NewActivy> {
       width: 8,
     );
     polylines[id] = polyline;
-    setState(() {});
+
+    setState(() {
+      ;
+    });
   }
 
   void getFirstLocation() async {
@@ -130,6 +142,7 @@ class _NewActivyState extends State<NewActivy> {
     var location = await _locationTracker.getLocation();
     LatLng firstLocation = LatLng(location.latitude!, location.longitude!);
     currentLocationWeather = await getWeatherLocation(location);
+
     if (_controller != null) {
       _controller?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
           bearing: 192.8334901395799,
@@ -197,6 +210,7 @@ class _NewActivyState extends State<NewActivy> {
                       LatLng(newLocalData.latitude!, newLocalData.longitude!),
                   tilt: 5,
                   zoom: 18.00)));
+
           updateMarkerAndCircle(newLocalData, imageData);
           getDirections(newLocalData);
         }
@@ -218,63 +232,76 @@ class _NewActivyState extends State<NewActivy> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.orange,
-      ),
-      body: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            routeMenuWidget(context),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+    return Consumer2<GoogleSignInProvider, EmailUserProvider>(
+      builder: ((
+        context,
+        value,
+        emailUser,
+        child,
+      ) {
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.orange,
+          ),
+          body: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Center(
-                  child: Container(
-                    child: GestureDetector(
-                      onTap: () {
-                        if (clickPlay) {
-                          _timer!.cancel();
-                          isStart = false;
-                          clickPlay = false;
-                        } else {
-                          clickPlay = true;
-                          _startTimer();
-                          getCurrentLocation();
-                        }
-                        setState(() {
-                          newPlayButton = clickPlay;
-                        });
-                      },
-                      child: newPlayButton
-                          ? const Icon(Icons.pause_circle_filled_sharp,
-                              size: 60)
-                          : const Icon(Icons.play_circle_sharp, size: 60),
+                routeMenuWidget(context),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Center(
+                      child: Container(
+                        child: GestureDetector(
+                          onTap: () {
+                            if (clickPlay) {
+                              _timer!.cancel();
+
+                              isStart = false;
+                              clickPlay = false;
+                            } else {
+                              clickPlay = true;
+                              firstPlay = true;
+                              _startTimer();
+                              getCurrentLocation();
+                            }
+                            setState(() {
+                              newPlayButton = clickPlay;
+                            });
+                          },
+                          child: newPlayButton
+                              ? const Icon(Icons.pause_circle_filled_sharp,
+                                  size: 60)
+                              : const Icon(Icons.play_circle_sharp, size: 60),
+                        ),
+                      ),
                     ),
-                  ),
+                    Center(
+                      child: Container(
+                        child: GestureDetector(
+                            onTap: () {
+                              if (clickPlay) {
+                                _timer!.cancel();
+                                isStart = false;
+                                clickPlay = false;
+                                newPlayButton = false;
+                                saveDatas();
+                              } else {
+                                getCurrentLocation();
+                              }
+                            },
+                            child:
+                                const Icon(Icons.stop_circle_sharp, size: 60)),
+                      ),
+                    ),
+                  ],
                 ),
-                Center(
-                  child: Container(
-                    child: GestureDetector(
-                        onTap: () {
-                          if (clickPlay) {
-                            _timer!.cancel();
-                            isStart = false;
-                            clickPlay = false;
-                            newPlayButton = false;
-                          } else {
-                            getCurrentLocation();
-                          }
-                        },
-                        child: const Icon(Icons.stop_circle_sharp, size: 60)),
-                  ),
-                ),
-              ],
-            ),
-            statusForExercise(),
-          ]),
+                statusForExercise(),
+              ]),
+        );
+      }),
     );
   }
 
@@ -438,10 +465,13 @@ class _NewActivyState extends State<NewActivy> {
         mapType: MapType.normal,
         initialCameraPosition: initialLocation,
         compassEnabled: false,
-        polylines: Set<Polyline>.of(polylines.values),
-        markers:
-            Set.of((marker != null) ? [marker!, fisrtLocationMarker!] : []),
-        circles: Set.of((circle != null) ? [circle!] : []),
+        polylines: firstPlay == true
+            ? Set<Polyline>.of(polylines.values)
+            : Set<Polyline>.of({}),
+        markers: Set.of((marker != null) && firstPlay == true
+            ? [marker!, fisrtLocationMarker!]
+            : []),
+        circles: Set.of((circle != null) && firstPlay == true ? [circle!] : []),
         onMapCreated: (GoogleMapController controller) {
           _controller = controller;
           setState(() {
@@ -450,6 +480,24 @@ class _NewActivyState extends State<NewActivy> {
         },
       ),
     );
+  }
+
+  void saveDatas() {
+    Activities newActiv = Activities(
+        userToken: "asda",
+        distance: distance,
+        finalLocLong: marker!.position.longitude,
+        finalLocLat: marker!.position.latitude,
+        //polylineData: savePoly!,
+        // savedDate: DateTime.now(),
+        startLocLat: fisrtLocationMarker!.position.latitude,
+        startLocLong: fisrtLocationMarker!.position.longitude,
+        stepCounter: adimSay!,
+        weatherCelcius: currentLocationWeather!.temperature!.celsius!,
+        weatherDescription: currentLocationWeather!.weatherDescription!);
+    var deneme = newActiv.toJson();
+    UserDatabaseProvider().open(deneme);
+    print(deneme);
   }
 
   // LocationData? currentLocation;
