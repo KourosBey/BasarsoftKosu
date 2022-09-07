@@ -7,6 +7,7 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:kosuprogrami/models/activities_model.dart';
+import 'package:kosuprogrami/provider/activitiesProvider.dart';
 import 'package:kosuprogrami/provider/emailUserProvider.dart';
 import 'package:location/location.dart';
 import 'package:provider/provider.dart';
@@ -24,6 +25,15 @@ class NewActivy extends StatefulWidget {
 }
 
 class _NewActivyState extends State<NewActivy> {
+  late UserDatabaseProvider databaseProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    databaseProvider = UserDatabaseProvider();
+    databaseProvider.open();
+  }
+
   bool firstPlay = false;
   bool isStart = false;
   bool loading = true;
@@ -35,6 +45,7 @@ class _NewActivyState extends State<NewActivy> {
   int? adimSay = 0;
   PolylinePoints? polylineDistance = PolylinePoints();
   Map<PolylineId, Polyline> polylines = {};
+  late Polyline polylinezzz;
   GoogleMapController? _controller;
   double distance = 0.0;
   bool clickPlay = false;
@@ -44,8 +55,7 @@ class _NewActivyState extends State<NewActivy> {
   int dakika = 0;
   int saniye = 0;
   Timer? _timer;
-  Activities? saveActivities;
-  List<LatLng>? savePoly;
+  List<PolylinesPoints> sendPolies = [];
   static CameraPosition initialLocation = const CameraPosition(
     target: LatLng(37.42796133580664, -122.085749655962),
     zoom: 18.0,
@@ -107,7 +117,7 @@ class _NewActivyState extends State<NewActivy> {
     print(totalDistance);
 
     addPolyLine(polylineCoordinates);
-    savePoly = polylineCoordinates;
+
     setState(() {
       adimSay = ((distance * 100000).toInt() / 70).toInt();
       distance = totalDistance;
@@ -130,11 +140,10 @@ class _NewActivyState extends State<NewActivy> {
       points: polylineCoordinates,
       width: 8,
     );
+    polylinezzz = polyline;
     polylines[id] = polyline;
 
-    setState(() {
-      ;
-    });
+    setState(() {});
   }
 
   void getFirstLocation() async {
@@ -232,11 +241,13 @@ class _NewActivyState extends State<NewActivy> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<GoogleSignInProvider, EmailUserProvider>(
+    return Consumer3<GoogleSignInProvider, EmailUserProvider,
+        ActivitiesProvider>(
       builder: ((
         context,
         value,
         emailUser,
+        activities,
         child,
       ) {
         return Scaffold(
@@ -287,7 +298,21 @@ class _NewActivyState extends State<NewActivy> {
                                 isStart = false;
                                 clickPlay = false;
                                 newPlayButton = false;
-                                saveDatas();
+
+                                activities.addActivities(
+                                  value.googleAccount != null
+                                      ? value.googleAccount!.id
+                                      : emailUser.user!.uid,
+                                  marker!.position.latitude,
+                                  marker!.position.longitude,
+                                  fisrtLocationMarker!.position.latitude,
+                                  fisrtLocationMarker!.position.longitude,
+                                  distance,
+                                  adimSay!,
+                                  currentLocationWeather!.temperature!.celsius!,
+                                  currentLocationWeather!.weatherDescription!,
+                                  polylinezzz,
+                                );
                               } else {
                                 getCurrentLocation();
                               }
@@ -481,54 +506,4 @@ class _NewActivyState extends State<NewActivy> {
       ),
     );
   }
-
-  void saveDatas() {
-    Activities newActiv = Activities(
-        userToken: "asda",
-        distance: distance,
-        finalLocLong: marker!.position.longitude,
-        finalLocLat: marker!.position.latitude,
-        //polylineData: savePoly!,
-        // savedDate: DateTime.now(),
-        startLocLat: fisrtLocationMarker!.position.latitude,
-        startLocLong: fisrtLocationMarker!.position.longitude,
-        stepCounter: adimSay!,
-        weatherCelcius: currentLocationWeather!.temperature!.celsius!,
-        weatherDescription: currentLocationWeather!.weatherDescription!);
-    var deneme = newActiv.toJson();
-    UserDatabaseProvider().open(deneme);
-    print(deneme);
-  }
-
-  // LocationData? currentLocation;
-  // void stateSet() async {
-  //   Position position = await _determinePosition();
-  //   setState(() {
-  //     googleMapController?.animateCamera(CameraUpdate.newCameraPosition(
-  //         CameraPosition(
-  //             target: LatLng(position.latitude, position.latitude), zoom: 20)));
-  //   });
-  // }
-
-  // Future<Position> _determinePosition() async {
-  //   bool serviceEnabled;
-  //   LocationPermission permission;
-
-  //   serviceEnabled = await Geolocator.isLocationServiceEnabled();
-  //   if (!serviceEnabled) {
-  //     return Future.error("Location services are disabled");
-  //   }
-  //   permission = await Geolocator.checkPermission();
-  //   if (permission == LocationPermission.denied) {
-  //     permission = await Geolocator.requestPermission();
-  //     if (permission == LocationPermission.denied) {
-  //       return Future.error("Location Permission Denied");
-  //     }
-  //   }
-  //   if (permission == LocationPermission.deniedForever) {
-  //     return Future.error("Permission Denied Forever");
-  //   }
-  //   Position position = await Geolocator.getCurrentPosition();
-  //   return position;
-  // }
 }

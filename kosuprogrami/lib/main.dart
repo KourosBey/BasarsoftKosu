@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:kosuprogrami/provider/activitiesProvider.dart';
 import 'package:kosuprogrami/provider/emailUserProvider.dart';
 import 'package:kosuprogrami/provider/googleProvider.dart';
 import 'package:kosuprogrami/screens/Shared/colors.dart';
@@ -26,6 +27,10 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (context) => EmailUserProvider(),
+          child: const LoginPage(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => ActivitiesProvider(),
           child: const LoginPage(),
         )
       ],
