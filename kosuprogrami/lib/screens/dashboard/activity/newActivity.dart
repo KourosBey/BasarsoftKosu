@@ -31,7 +31,6 @@ class _NewActivyState extends State<NewActivy> {
   void initState() {
     super.initState();
     databaseProvider = UserDatabaseProvider();
-    databaseProvider.open();
   }
 
   bool firstPlay = false;

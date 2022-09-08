@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:kosuprogrami/models/activities_model.dart';
 
+import '../databases/dbActivityDatas.dart';
+
 class ActivitiesProvider with ChangeNotifier {
   List<PolylinesPoints>? polylinePoints;
-  void addActivities(
+  FutureOr<void> addActivities(
     String _userToken,
     double _startLoclat,
     double _startLocLong,
@@ -17,7 +20,7 @@ class ActivitiesProvider with ChangeNotifier {
     double _weatherCelcius,
     String _weatherDescription,
     Polyline _polylinecordinates,
-  ) {
+  ) async {
     Activities newActivity = Activities(
         userToken: _userToken,
         distance: _distance,
@@ -32,6 +35,9 @@ class ActivitiesProvider with ChangeNotifier {
         weatherDescription: _weatherDescription);
 
     var deneme = newActivity.toJson();
+
+    var seren = await UserDatabaseProvider().insertActivities(newActivity);
+
     Activities deneme2 = Activities.fromJson(deneme);
   }
 
