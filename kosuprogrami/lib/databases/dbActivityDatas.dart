@@ -1,12 +1,14 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:path/path.dart';
 import 'package:kosuprogrami/models/activities_model.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite/sqlite_api.dart';
 
-class UserDatabaseProvider {
+class UserDatabaseProvider extends ChangeNotifier {
   final int _version = 1;
   static Database? _database;
+
   String userToken = "userToken";
   String startLocLat = "startLocLat";
   String startLocLong = "startLocLong";
@@ -17,7 +19,7 @@ class UserDatabaseProvider {
   String weatherCelcius = "weatherCelcius";
   String weatherDescription = "weatherDescription";
   String savedTime = "savedTime";
-
+  List<Activities> get items => [];
   Future<Database?> get database async {
     if (_database != null) return _database = await initDb();
 
@@ -89,18 +91,7 @@ class UserDatabaseProvider {
 
   FutureOr<List<Activities>> getLastDatas() async {
     var dbClient = await database;
-    List<String> _selectedColums = [
-      UserDatabaseProvider().distance,
-      UserDatabaseProvider().finalLocLat,
-      UserDatabaseProvider().finalLocLong,
-      UserDatabaseProvider().savedTime,
-      UserDatabaseProvider().startLocLat,
-      UserDatabaseProvider().startLocLong,
-      UserDatabaseProvider().stepCounter,
-      UserDatabaseProvider().userToken,
-      UserDatabaseProvider().weatherCelcius,
-      UserDatabaseProvider().weatherDescription,
-    ];
+
     List<Map> lastID = await dbClient!.rawQuery(
         "Select * from  PolylinesPoints where activitiesID=(select Max(activitiesID) from PolylinesPoints  )");
 
@@ -113,6 +104,21 @@ class UserDatabaseProvider {
     return maps.map((e) => Activities.fromJson(e)).toList();
   }
 
+  Future<List<PolylinesPoints>> getPoliesDatas(int id) async {
+    var dbClient = await database;
+    List<Map> maps = await dbClient!
+        .rawQuery("select * from PolylinesPoints where activitiesID=${id}");
+    return maps.map((e) => PolylinesPoints.fromJson(e)).toList();
+  }
+
+  Future<int> getID() async {
+    var dbClient = await database;
+    List<Map> lastID = await dbClient!.rawQuery(
+        "Select * from  PolylinesPoints where activitiesID=(select Max(activitiesID) from PolylinesPoints  )");
+    List<PolylinesPoints> ourID =
+        lastID.map((e) => PolylinesPoints.fromJson(e)).toList();
+    return ourID[0].activitiesID;
+  }
   // Future<void> open() async {
   //   var dbPath = await getDatabasesPath();
   //   String path = join(dbPath, 'basarsoft.db');

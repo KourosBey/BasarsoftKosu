@@ -10,6 +10,18 @@ import '../databases/dbActivityDatas.dart';
 
 class ActivitiesProvider with ChangeNotifier {
   List<PolylinesPoints>? polylinePoints;
+
+  List<Activities> items = [];
+  int id = 0;
+  List<PolylinesPoints> poliePoints = [];
+  UserDatabaseProvider _dbProvider;
+
+  ActivitiesProvider(
+    this._dbProvider,
+  ) {
+    if (_dbProvider != null) getList();
+  }
+
   FutureOr<void> addActivities(
     String _userToken,
     double _startLoclat,
@@ -34,14 +46,20 @@ class ActivitiesProvider with ChangeNotifier {
         weatherDescription: _weatherDescription,
         savedDate: DateTime.now());
 
-    var deneme = newActivity.toJson();
-
-    var seren = await UserDatabaseProvider().insertActivities(newActivity);
-    polylinePoints = addArgs(_polylinecordinates, seren);
+    var insertReq = await UserDatabaseProvider().insertActivities(newActivity);
+    polylinePoints = addArgs(_polylinecordinates, insertReq);
 
     polylinePoints?.forEach((element) async {
       await UserDatabaseProvider().insertPolylines(element);
     });
+    notifyListeners();
+  }
+
+  Future<void> getList() async {
+    items = await UserDatabaseProvider().getLastDatas();
+    id = await UserDatabaseProvider().getID();
+    poliePoints = await UserDatabaseProvider().getPoliesDatas(id);
+    notifyListeners();
   }
 
   List<PolylinesPoints> addArgs(Polyline polylinecordinates, int actID) {
@@ -59,6 +77,7 @@ class ActivitiesProvider with ChangeNotifier {
     }
 
     return polimm;
+
     // Object? polydenme = polylinecordinates.toJson();
     // var polydeneme2 = jsonDecode("polydeneme", {polydenme!});
   }

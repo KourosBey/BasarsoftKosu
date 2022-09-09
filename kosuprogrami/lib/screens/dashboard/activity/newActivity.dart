@@ -185,7 +185,7 @@ class _NewActivyState extends State<NewActivy> {
           zIndex: 2,
           flat: true,
           anchor: const Offset(0.5, 0.5),
-          icon: BitmapDescriptor.fromBytes(imageData));
+          icon: BitmapDescriptor.defaultMarker);
       circle = Circle(
           circleId: const CircleId("car"),
           radius: newLocalData.accuracy!,

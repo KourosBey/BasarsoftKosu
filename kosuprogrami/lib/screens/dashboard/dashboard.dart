@@ -3,9 +3,11 @@ import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:kosuprogrami/databases/dbActivityDatas.dart';
 import 'package:kosuprogrami/models/activities_model.dart';
 import 'package:kosuprogrami/models/empty_activities_model.dart';
+import 'package:kosuprogrami/provider/activitiesProvider.dart';
 import 'package:kosuprogrami/provider/emailUserProvider.dart';
 import 'package:kosuprogrami/screens/dashboard/activity/historyActivity.dart';
 import 'package:kosuprogrami/screens/dashboard/activity/newActivity.dart';
@@ -24,58 +26,74 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   late UserDatabaseProvider databaseProvider;
-  bool? isEmptyDatas;
-  List<Activities>? lastActivities;
+
   @override
   void initState() {
     super.initState();
 
     databaseProvider = UserDatabaseProvider();
-    isEmptyData();
   }
 
+  int step = 0;
+  Map<PolylineId, Polyline> polylinesLast = {};
   @override
   Widget build(BuildContext context) {
-    return Consumer2<GoogleSignInProvider, EmailUserProvider>(
+    return Consumer3<GoogleSignInProvider, EmailUserProvider,
+        ActivitiesProvider>(
       builder: ((
         context,
         value,
         emailUser,
+        activities,
         child,
       ) {
         return Scaffold(
             backgroundColor: const Color.fromARGB(255, 229, 252, 230),
-            body: loggedInUI(value, emailUser.user));
+            body: loggedInUI(value, emailUser.user, activities));
       }),
     );
   }
 
-  void isEmptyData() async {
-    var data = await UserDatabaseProvider().haveData();
+  addPolyline(ActivitiesProvider activities) {
+    PolylineId id = const PolylineId("poly");
+
+    List<LatLng> poliesLatz = [];
+    LatLng latlng;
+    for (var poli in activities.poliePoints) {
+      latlng = LatLng(poli.polylineLat, poli.polylineLong);
+      poliesLatz.add(latlng);
+    }
+
+    Polyline polyline = Polyline(
+      polylineId: id,
+      color: Colors.black,
+      points: poliesLatz,
+      width: 8,
+    );
+    getAllStep(activities);
     setState(() {
-      isEmptyDatas = data;
+      polylinesLast[id] = polyline;
     });
   }
 
-  void getDatas() async {
-    if (isEmptyDatas!) {
-      setState(() {
-        lastActivities = act;
-      });
-    } else {
-      var s = await UserDatabaseProvider().getLastDatas();
-      setState(() async {
-        lastActivities = s;
-      });
+  void getAllStep(ActivitiesProvider activities) {
+    int stepCounter = 0;
+    for (var items in activities.items) {
+      stepCounter += items.stepCounter;
     }
+    setState(() {
+      step = stepCounter;
+    });
   }
 
-  Widget loggedInUI(GoogleSignInProvider model, User? user) {
-    int hedef = 10000;
-    if (isEmptyDatas ?? true) {
-    } else {
-      getDatas();
-    }
+  Widget loggedInUI(
+      GoogleSignInProvider model, User? user, ActivitiesProvider activities) {
+    int hedef = 1000;
+
+    GoogleMapController? _controller;
+    Map<PolylineId, Polyline> polylines = {};
+    activities.getList();
+    List<Activities> a = activities.items;
     return SingleChildScrollView(
         scrollDirection: Axis.vertical,
         child: Column(
@@ -114,7 +132,7 @@ class _MainPageState extends State<MainPage> {
                         ]),
                   ),
                   const Padding(padding: EdgeInsets.all(20.0)),
-                  allExercise(hedef)
+                  allExercise(hedef, activities)
                 ],
               )),
               const Padding(padding: EdgeInsets.all(20.0)),
@@ -136,15 +154,27 @@ class _MainPageState extends State<MainPage> {
                       mainAxisAlignment: MainAxisAlignment.start,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        isEmptyDatas ?? true
-                            ? Text("1234")
-                            : Text("${lastActivities![0].distance}"),
+                        const Text("Son İdman Haritası"),
                         const Padding(padding: EdgeInsets.only(bottom: 5.0)),
                         Center(
                             child: Container(
                           color: Colors.white,
                           width: MediaQuery.of(context).size.width - 50,
                           height: 120,
+                          child: GoogleMap(
+                            polylines: Set<Polyline>.of(polylinesLast.values),
+                            mapType: MapType.normal,
+                            compassEnabled: false,
+                            initialCameraPosition: CameraPosition(
+                              target: LatLng(activities.items.first.finalLocLat,
+                                  activities.items.first.finalLocLong),
+                              zoom: 18.0,
+                            ),
+                            onMapCreated: (GoogleMapController controller) {
+                              _controller = controller;
+                              addPolyline(activities);
+                            },
+                          ),
                         ))
                       ]),
                 ),
@@ -166,8 +196,72 @@ class _MainPageState extends State<MainPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.center,
-                    children: const [
-                      Text("Son Yapılan İdman Detay"),
+                    children: [
+                      const Text("Son Yapılan İdman Detay"),
+                      Padding(padding: const EdgeInsets.all(10)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            decoration: const BoxDecoration(
+                                boxShadow: [
+                                  BoxShadow(
+                                      offset: Offset(4.0, 4.0),
+                                      blurRadius: 5.0,
+                                      color: Colors.black),
+                                ],
+                                color: Colors.white,
+                                borderRadius:
+                                    BorderRadius.all(Radius.circular(5))),
+                            child: Column(
+                              children: [
+                                const Text("Yürünen Mesafe"),
+                                Text(
+                                    "${activities.items.first.distance.toStringAsFixed(2).toString()}" +
+                                        "KM"),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            decoration: const BoxDecoration(
+                                boxShadow: [
+                                  BoxShadow(
+                                      offset: Offset(4.0, 4.0),
+                                      blurRadius: 5.0,
+                                      color: Colors.black),
+                                ],
+                                color: Colors.white,
+                                borderRadius:
+                                    BorderRadius.all(Radius.circular(5))),
+                            child: Column(
+                              children: [
+                                const Text("Hava Sıcaklığı"),
+                                Text(
+                                    "${activities.items.first.weatherCelcius.toStringAsFixed(2).toString()}\u2103"),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            decoration: const BoxDecoration(
+                                boxShadow: [
+                                  BoxShadow(
+                                      offset: Offset(4.0, 4.0),
+                                      blurRadius: 5.0,
+                                      color: Colors.black),
+                                ],
+                                color: Colors.white,
+                                borderRadius:
+                                    BorderRadius.all(Radius.circular(5))),
+                            child: Column(
+                              children: [
+                                const Text("Hava Durumu"),
+                                Text(activities.items.first.weatherDescription),
+                              ],
+                            ),
+                          )
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -281,7 +375,7 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  Row allExercise(int hedef) {
+  Row allExercise(int hedef, ActivitiesProvider activities) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -315,7 +409,7 @@ class _MainPageState extends State<MainPage> {
                     radius: 30,
                     lineWidth: 5.0,
                     animation: true,
-                    percent: 0.5,
+                    percent: ((hedef - (step)) / (hedef * 100)),
                     center: const Text("Hedef"),
                   ),
                 ),
@@ -327,7 +421,7 @@ class _MainPageState extends State<MainPage> {
                         style:
                             const TextStyle(fontSize: 12, fontFamily: "Arial"),
                         "Günlük Kalan Hedefiniz : " +
-                            "${hedef - (hedef * 0.5).toInt()}"),
+                            "${hedef - (step).toInt()}"),
                   ],
                 ))
               ]),
@@ -365,7 +459,7 @@ class _MainPageState extends State<MainPage> {
                     radius: 30,
                     lineWidth: 5.0,
                     animation: true,
-                    percent: 0.5,
+                    percent: ((hedef * 7 - (step)) / (hedef * 100)),
                     center: const Text("Hedef"),
                   ),
                 ),
@@ -377,7 +471,7 @@ class _MainPageState extends State<MainPage> {
                         style:
                             const TextStyle(fontSize: 12, fontFamily: "Arial"),
                         "Aylık Kalan Hedefiniz : " +
-                            "${hedef - (hedef * 0.5).toInt()}"),
+                            "${hedef * 7 - (step).toInt()}"),
                   ],
                 ))
               ]),

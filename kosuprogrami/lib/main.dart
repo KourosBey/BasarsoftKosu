@@ -8,15 +8,19 @@ import 'package:kosuprogrami/screens/login/login.dart';
 import 'package:kosuprogrami/screens/splash/splashScreen.dart';
 import 'package:provider/provider.dart';
 
+import 'databases/dbActivityDatas.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(const MyApp());
+
+  runApp(MyApp());
 }
 
+// ignore: must_be_immutable
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
-
+  MyApp({Key? key}) : super(key: key);
+  UserDatabaseProvider user = UserDatabaseProvider();
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -30,7 +34,7 @@ class MyApp extends StatelessWidget {
           child: const LoginPage(),
         ),
         ChangeNotifierProvider(
-          create: (context) => ActivitiesProvider(),
+          create: (context) => ActivitiesProvider(user),
           child: const LoginPage(),
         )
       ],

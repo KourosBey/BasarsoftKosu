@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import 'package:kosuprogrami/provider/activitiesProvider.dart';
 import 'package:kosuprogrami/provider/emailUserProvider.dart';
 import 'package:kosuprogrami/provider/googleProvider.dart';
 import 'package:kosuprogrami/screens/dashboard/dashboard.dart';
@@ -22,8 +23,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget loginUI() {
-    return Consumer2<GoogleSignInProvider, EmailUserProvider>(
-      builder: ((context, value, email, child) {
+    return Consumer3<GoogleSignInProvider, EmailUserProvider,
+        ActivitiesProvider>(
+      builder: ((context, value, email, activities, child) {
         if (value.googleAccount != null) {
           return const MainPage();
         } else if (email.user != null) {
@@ -32,20 +34,6 @@ class _LoginPageState extends State<LoginPage> {
           return loginControls(context);
         }
       }),
-    );
-  }
-
-  Widget loggedInUI(GoogleSignInProvider model) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        CircleAvatar(
-          backgroundImage:
-              Image.network(model.googleAccount!.photoUrl ?? "").image,
-          radius: 50,
-        ),
-      ],
     );
   }
 
