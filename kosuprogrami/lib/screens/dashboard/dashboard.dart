@@ -1,5 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:kosuprogrami/databases/dbActivityDatas.dart';
+import 'package:kosuprogrami/models/activities_model.dart';
+import 'package:kosuprogrami/models/empty_activities_model.dart';
 import 'package:kosuprogrami/provider/emailUserProvider.dart';
 import 'package:kosuprogrami/screens/dashboard/activity/historyActivity.dart';
 import 'package:kosuprogrami/screens/dashboard/activity/newActivity.dart';
@@ -17,6 +23,17 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
+  late UserDatabaseProvider databaseProvider;
+  bool? isEmptyDatas;
+  List<Activities>? lastActivities;
+  @override
+  void initState() {
+    super.initState();
+
+    databaseProvider = UserDatabaseProvider();
+    isEmptyData();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer2<GoogleSignInProvider, EmailUserProvider>(
@@ -26,50 +43,39 @@ class _MainPageState extends State<MainPage> {
         emailUser,
         child,
       ) {
-        if (value.googleAccount != null) {
-          return Scaffold(
-              backgroundColor: const Color.fromARGB(255, 229, 252, 230),
-              body: loggedInUI(value, emailUser.user));
-        } else if (emailUser.user != null) {
-          return Scaffold(
-              backgroundColor: const Color.fromARGB(255, 229, 252, 230),
-              body: loggedInUI(value, emailUser.user));
-        } else {
-          return Container();
-        }
+        return Scaffold(
+            backgroundColor: const Color.fromARGB(255, 229, 252, 230),
+            body: loggedInUI(value, emailUser.user));
       }),
     );
-
-    // Column(
-    //   mainAxisAlignment: MainAxisAlignment.center,
-    //   crossAxisAlignment: CrossAxisAlignment.center,
-    //   children: [
-    //     CircleAvatar(
-    //       backgroundImage: Image.network("").image,
-    //       radius: 50,
-    //     ),
-    //   ],
-    // );
   }
 
-  // Widget loggedInEmailUI(User? email) {
-  //   return Column(
-  //     mainAxisAlignment: MainAxisAlignment.start,
-  //     crossAxisAlignment: CrossAxisAlignment.center,
-  //     children: [
-  //       Center(
-  //         child: CircleAvatar(
-  //           backgroundImage: Image.network(email?.photoURL ?? "").image,
-  //           radius: 50,
-  //         ),
-  //       ),
-  //     ],
-  //   );
-  // }
+  void isEmptyData() async {
+    var data = await UserDatabaseProvider().haveData();
+    setState(() {
+      isEmptyDatas = data;
+    });
+  }
+
+  void getDatas() async {
+    if (isEmptyDatas!) {
+      setState(() {
+        lastActivities = act;
+      });
+    } else {
+      var s = await UserDatabaseProvider().getLastDatas();
+      setState(() async {
+        lastActivities = s;
+      });
+    }
+  }
 
   Widget loggedInUI(GoogleSignInProvider model, User? user) {
     int hedef = 10000;
-
+    if (isEmptyDatas ?? true) {
+    } else {
+      getDatas();
+    }
     return SingleChildScrollView(
         scrollDirection: Axis.vertical,
         child: Column(
@@ -130,7 +136,9 @@ class _MainPageState extends State<MainPage> {
                       mainAxisAlignment: MainAxisAlignment.start,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const Text("Son Yapılan İdman"),
+                        isEmptyDatas ?? true
+                            ? Text("1234")
+                            : Text("${lastActivities![0].distance}"),
                         const Padding(padding: EdgeInsets.only(bottom: 5.0)),
                         Center(
                             child: Container(

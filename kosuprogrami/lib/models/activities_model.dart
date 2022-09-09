@@ -7,22 +7,28 @@ import 'package:location/location.dart';
 class PolylinesPoints {
   double polylineLat;
   double polylineLong;
+  int activitiesID;
   PolylinesPoints({
     required this.polylineLat,
     required this.polylineLong,
+    required this.activitiesID,
   });
 
   factory PolylinesPoints.fromJson(Map<dynamic, dynamic> json) {
     return PolylinesPoints(
-      polylineLat: json["polyliteLat"],
+      polylineLat: json["polylineLat"],
       polylineLong: json["polylineLong"],
+      activitiesID: json["activitiesID"],
     );
   }
 
   Map<String, dynamic> tojson() {
     final Map<String, dynamic> data = <String, dynamic>{};
-    data["polyliteLat"] = polylineLat;
+
+    data["polylineLat"] = polylineLat;
     data["polylineLong"] = polylineLong;
+    data["activitiesID"] = activitiesID;
+
     return data;
   }
 }
@@ -34,23 +40,23 @@ class Activities {
   double finalLocLat; //+
   double finalLocLong; //+
   double distance; //+
-  List<PolylinesPoints> polyLinePoints;
+
   // List<double> polylineLat;
   // List<double> polylineLong; //+
   int stepCounter; //+
   double weatherCelcius; //+
   String weatherDescription; //+
-  // DateTime savedDate;
+  DateTime savedDate;
 
   Activities(
       {required this.userToken,
       required this.distance,
       required this.finalLocLong,
       required this.finalLocLat,
-      required this.polyLinePoints,
+
       // required this.polylineLat,
       // required this.polylineLong,
-      // required this.savedDate,
+      required this.savedDate,
       required this.startLocLat,
       required this.startLocLong,
       required this.stepCounter,
@@ -63,11 +69,10 @@ class Activities {
         distance: json["distance"],
         finalLocLong: json["startLocLong"],
         finalLocLat: json["startLocLat"],
-        polyLinePoints: (List<PolylinesPoints>.from(
-            json['polylinePoints'].map((x) => PolylinesPoints.fromJson(x)))),
+
         // polylineLat: json["polylineLat"],
         // polylineLong: json["polylineLong"],
-        // savedDate: json["savedTime"],
+        savedDate: DateTime.parse(json["savedTime"]),
         startLocLat: json["startLocLat"],
         startLocLong: json["startLocLong"],
         stepCounter: json["stepCounter"],
@@ -83,15 +88,13 @@ class Activities {
     data['finalLocLat'] = finalLocLat;
     data['finalLocLong'] = finalLocLong;
     data['distance'] = distance;
-    data['polylinePoints'] =
-        List<dynamic>.from(polyLinePoints.map((e) => e.tojson()));
 
     // data['polylineLat'] = List<double>.from(polylineLat.map((e) => e));
     // data['polylineLong'] = List<double>.from(polylineLong.map((e) => e));
     data['stepCounter'] = stepCounter;
     data['weatherCelcius'] = weatherCelcius;
     data['weatherDescription'] = weatherDescription;
-    // data['savedTime'] = savedDate.toString();
+    data['savedTime'] = savedDate.toIso8601String();
     return data;
   }
 }

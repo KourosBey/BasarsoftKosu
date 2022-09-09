@@ -7,6 +7,16 @@ import 'package:sqflite/sqlite_api.dart';
 class UserDatabaseProvider {
   final int _version = 1;
   static Database? _database;
+  String userToken = "userToken";
+  String startLocLat = "startLocLat";
+  String startLocLong = "startLocLong";
+  String finalLocLat = "finalLocLat";
+  String finalLocLong = "finalLocLong";
+  String distance = "distance";
+  String stepCounter = "stepCounter";
+  String weatherCelcius = "weatherCelcius";
+  String weatherDescription = "weatherDescription";
+  String savedTime = "savedTime";
 
   Future<Database?> get database async {
     if (_database != null) return _database = await initDb();
@@ -19,20 +29,41 @@ class UserDatabaseProvider {
   initDb() async {
     var dbFolder = await getDatabasesPath();
     String path = join(dbFolder, "Basarsoft.db");
-    return await openDatabase(path, onCreate: _onCreate, version: _version);
+    return await openDatabase(path,
+        onCreate: _onCreate, version: _version, onUpgrade: _onUpgrade);
+  }
+
+  FutureOr<void> _onUpgrade(Database db, int oldVersion, int version) async {
+    if (oldVersion > version) {
+//
+
+    }
   }
 
   FutureOr<void> _onCreate(Database db, int version) async {
     await db.execute('''CREATE TABLE Activities( 
-      activitiesID int autoincremented ,
+      activitiesID INTEGER   ,
       userToken TEXT,
       startLocLat REAL,
       startLocLong REAL,finalLocLat REAL,
       finalLocLong REAL,distance REAL,
       stepCounter integer,
       weatherCelcius REAL,
-      weatherDescription TEXT,
-      polylinePoints TEXT)''');
+      weatherDescription TEXT,    
+      savedTime TEXT,
+      PRIMARY KEY("activitiesID" AUTOINCREMENT))''');
+    await db.execute(''' 
+    CREATE TABLE PolylinesPoints(
+      polylineID INTEGER ,
+      polylineLat REAL,
+      polylineLong REAL,
+      activitiesID int ,
+      PRIMARY KEY("polylineID" AUTOINCREMENT),
+      CONSTRAINT fk_Activities
+        FOREIGN KEY(activitiesID)
+        REFERENCES PolylinesPoints(activitiesID)
+    )
+    ''');
   }
 
   Future<int> insertActivities(Activities model) async {
@@ -42,6 +73,46 @@ class UserDatabaseProvider {
       model.toJson(),
     );
   }
+
+  Future<int> insertPolylines(PolylinesPoints poli) async {
+    var dbClient = await database;
+    return await dbClient!.insert("PolylinesPoints", poli.tojson());
+  }
+
+  Future<bool> haveData() async {
+    var dbClient = await database;
+    List<Map> maps =
+        await dbClient!.rawQuery("select * from Activities where activitiesID");
+
+    return maps.isEmpty;
+  }
+
+  FutureOr<List<Activities>> getLastDatas() async {
+    var dbClient = await database;
+    List<String> _selectedColums = [
+      UserDatabaseProvider().distance,
+      UserDatabaseProvider().finalLocLat,
+      UserDatabaseProvider().finalLocLong,
+      UserDatabaseProvider().savedTime,
+      UserDatabaseProvider().startLocLat,
+      UserDatabaseProvider().startLocLong,
+      UserDatabaseProvider().stepCounter,
+      UserDatabaseProvider().userToken,
+      UserDatabaseProvider().weatherCelcius,
+      UserDatabaseProvider().weatherDescription,
+    ];
+    List<Map> lastID = await dbClient!.rawQuery(
+        "Select * from  PolylinesPoints where activitiesID=(select Max(activitiesID) from PolylinesPoints  )");
+
+    List<PolylinesPoints> ourId =
+        lastID.map((e) => PolylinesPoints.fromJson(e)).toList();
+
+    List<Map> maps = await dbClient.rawQuery(
+        "select * from Activities where activitiesID=${ourId[0].activitiesID}");
+
+    return maps.map((e) => Activities.fromJson(e)).toList();
+  }
+
   // Future<void> open() async {
   //   var dbPath = await getDatabasesPath();
   //   String path = join(dbPath, 'basarsoft.db');
